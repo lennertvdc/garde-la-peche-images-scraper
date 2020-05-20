@@ -1,0 +1,14 @@
+{
+  "name": "garde-la-peche-images-scraper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "author": "Lennert Vandecasteele",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^3.1.0"
+  }
+}
