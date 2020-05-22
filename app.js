@@ -2,6 +2,7 @@ const puppeteer = require("puppeteer");
 const fs = require("fs");
 const cookies = require("./cookies.json");
 const config = require("./config.json");
+const latestDownload = require("./latest-download.json");
 
 async function init() {
     const SCRAPE_URL = config.scrape_url;
@@ -9,6 +10,12 @@ async function init() {
     const context = browser.defaultBrowserContext();
     context.overridePermissions("https://www.facebook.com", ["geolocation", "notifications"]);
     const page = await browser.newPage();
+    // TEMP
+    await page.setViewport({
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 1,
+    });
 
     // Check if there is a previously saved session
     if (Object.keys(cookies).length) {
@@ -24,10 +31,14 @@ async function init() {
     // Go to facebook page for scraping
     await page.goto(SCRAPE_URL, { waitUntil: "networkidle2" });
 
-    // Scroll down until end of page
-    await autoScroll(page);
+    let downloadQueue;
+    if(latestDownload.timestamp != "null") {
+        downloadQueue = await updateImages(page);
+    } else {
+        console.log("Downloading all images...");
+    }
 
-    // Download all images
+    console.log("Ready for downloading!");
 }
 
 async function login(page) {
@@ -62,13 +73,13 @@ async function login(page) {
     fs.writeFileSync("./cookies.json", JSON.stringify(currentCookies));
 }
 
-async function autoScroll(page) {
+async function scrollToNewFeed(page) {
     await page.evaluate(async () => {
         await new Promise((resolve, reject) => {
-            var totalHeight = 0;
-            var distance = 100;
-            var timer = setInterval(() => {
-                var scrollHeight = document.body.scrollHeight;
+            let totalHeight = 0;
+            let distance = 100;
+            let scrollHeight = document.body.scrollHeight;
+            let timer = setInterval(() => {
                 window.scrollBy(0, distance);
                 totalHeight += distance;
 
@@ -79,6 +90,44 @@ async function autoScroll(page) {
             }, 100);
         });
     });
+}
+
+async function updateImages(page) {
+    let readyToDownload = false;
+    while (!readyToDownload) {
+        let returnArr = await page.evaluate((latestDownload) => {
+            let downloadQueue = [];
+            let postsFeed = document.querySelectorAll('div[data-testid="newsFeedStream"]')[0].querySelectorAll('div[data-fte="1"');
+            let latestDownloadTimestamp = latestDownload.timestamp;
+
+            let upToDate = false;
+            postsFeed.forEach(post => {
+                let postTimestamp = post.querySelector('.timestampContent').parentElement.dataset.utime;
+                if (!upToDate && postTimestamp != latestDownloadTimestamp) {
+                    if (post.querySelector("a[rel='theater']") != null) {
+                        let img = {
+                            link: post.querySelector("a[rel='theater']").querySelector("img").src,
+                            timestamp: postTimestamp
+                        }
+                        downloadQueue.push(img);
+                    }
+                } else {
+                    upToDate = true;
+                }
+
+            });
+
+            return [upToDate, downloadQueue]
+        }, latestDownload);
+
+        let upToDate = returnArr[0];
+        if (!upToDate) {
+            await scrollToNewFeed(page);
+        } else {
+            readyToDownload = true;
+            return returnArr[1];   
+        }
+    }
 }
 
 
