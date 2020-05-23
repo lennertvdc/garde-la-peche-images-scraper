@@ -38,7 +38,15 @@ async function init() {
         browser.close();
 
         // Download the queue
+        console.log(`Start downloading ${downloadQueue.length} images...`);
         await startDownload(downloadQueue);
+        console.log("Queue succesfully downloaded!");
+
+        // Update latest-download.json
+        updateLatestDownloadFile(newestPostTimestamp);
+    } else {
+        browser.close();
+        console.log("No images needed to be downloaded, image repository is up to date!");
     }
 }
 
@@ -93,6 +101,7 @@ async function getDownloadQueue(page) {
         if (timestamp != latestDownloadedImg) {
             let downloadObject = await getDownloadObject(page, timestamp);
             downloadQueue.push(downloadObject);
+            console.log(`Add image to queue! Length of queue is ${downloadQueue.length}`);
 
             await page.click("a[title='Volgende']");
             await page.waitForSelector("span#fbPhotoSnowliftTimestamp");
@@ -147,6 +156,15 @@ async function startDownload(queue) {
 
         response.data.pipe(writer)
     });
+}
+
+function updateLatestDownloadFile(timestamp) {
+    const timestampJson = {
+        timestamp: timestamp
+    }
+
+    const data = JSON.stringify(timestampJson);
+    fs.writeFileSync('latest-download.json', data);
 }
 
 init();
