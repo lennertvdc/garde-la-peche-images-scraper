@@ -31,14 +31,19 @@ async function init() {
     // Go to facebook page for scraping
     await page.goto(SCRAPE_URL, { waitUntil: "networkidle2" });
 
-    let downloadQueue;
-    if(latestDownload.timestamp != "null") {
-        downloadQueue = await updateImages(page);
-    } else {
-        console.log("Downloading all images...");
-    }
+    // Go to page of first image
+    const link = await giveFirstImageLink(page);
+    await page.goto(link, { waitUntil: "networkidle2" });
 
-    console.log("Ready for downloading!");
+    // Create a downloadQueue
+    const newestPostTimestamp = await getPostTimestamp(page);
+    if(newestPostTimestamp != latestDownload.timestamp) {
+        const downloadQueue = await getDownloadQueue(page);
+    
+        // Download the queue
+        console.log("Ready to download!");
+        console.log(downloadQueue);
+    }
 }
 
 async function login(page) {
@@ -73,62 +78,62 @@ async function login(page) {
     fs.writeFileSync("./cookies.json", JSON.stringify(currentCookies));
 }
 
-async function scrollToNewFeed(page) {
-    await page.evaluate(async () => {
-        await new Promise((resolve, reject) => {
-            let totalHeight = 0;
-            let distance = 100;
-            let scrollHeight = document.body.scrollHeight;
-            let timer = setInterval(() => {
-                window.scrollBy(0, distance);
-                totalHeight += distance;
+async function giveFirstImageLink(page) {
+    return await page.evaluate(() => {
+        const table = document.querySelector("table");
+        const firstImage = table.querySelector("td")
+        const link = firstImage.querySelector("a").href;
 
-                if (totalHeight >= scrollHeight) {
-                    clearInterval(timer);
-                    resolve();
-                }
-            }, 100);
-        });
+        return link;
     });
 }
 
-async function updateImages(page) {
+async function getDownloadQueue(page) {
     let readyToDownload = false;
+    let downloadQueue = [];
     while (!readyToDownload) {
-        let returnArr = await page.evaluate((latestDownload) => {
-            let downloadQueue = [];
-            let postsFeed = document.querySelectorAll('div[data-testid="newsFeedStream"]')[0].querySelectorAll('div[data-fte="1"');
-            let latestDownloadTimestamp = latestDownload.timestamp;
+        const latestDownloadedImg = latestDownload.timestamp;
+        let timestamp = await getPostTimestamp(page);
+        if (timestamp != latestDownloadedImg) {
+            let downloadObject = await getDownloadObject(page, timestamp);
+            downloadQueue.push(downloadObject);
 
-            let upToDate = false;
-            postsFeed.forEach(post => {
-                let postTimestamp = post.querySelector('.timestampContent').parentElement.dataset.utime;
-                if (!upToDate && postTimestamp != latestDownloadTimestamp) {
-                    if (post.querySelector("a[rel='theater']") != null) {
-                        let img = {
-                            link: post.querySelector("a[rel='theater']").querySelector("img").src,
-                            timestamp: postTimestamp
-                        }
-                        downloadQueue.push(img);
-                    }
-                } else {
-                    upToDate = true;
-                }
-
-            });
-
-            return [upToDate, downloadQueue]
-        }, latestDownload);
-
-        let upToDate = returnArr[0];
-        if (!upToDate) {
-            await scrollToNewFeed(page);
+            await page.click("a[title='Volgende']");
+            await page.waitFor(500);
         } else {
             readyToDownload = true;
-            return returnArr[1];   
         }
+    }
+
+    return downloadQueue;
+}
+
+async function getPostTimestamp(page) {
+    return await page.evaluate(() => {
+        const span = document.querySelector("span#fbPhotoSnowliftTimestamp")
+        const timestamp = span.querySelector("span.timestampContent").parentElement.dataset.utime;
+        
+        return timestamp;
+    });
+}
+
+async function getDownloadObject(page, timestamp) {
+    const imgLink = await getImageLink(page);
+
+    return {
+        timestamp: timestamp,
+        link: imgLink
     }
 }
 
+async function getImageLink(page) {
+    return await page.evaluate(() => {
+        const stage = document.querySelector("div.stage");
+        const image = stage.querySelector("img.spotlight");
+        const link = image.src;
+
+        return link;
+    })
+}
 
 init();
