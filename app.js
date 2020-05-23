@@ -3,6 +3,8 @@ const fs = require("fs");
 const cookies = require("./cookies.json");
 const config = require("./config.json");
 const latestDownload = require("./latest-download.json");
+const Axios = require("axios");
+const Path = require("path")
 
 async function init() {
     const SCRAPE_URL = config.scrape_url;
@@ -37,12 +39,12 @@ async function init() {
 
     // Create a downloadQueue
     const newestPostTimestamp = await getPostTimestamp(page);
-    if(newestPostTimestamp != latestDownload.timestamp) {
+    if (newestPostTimestamp != latestDownload.timestamp) {
         const downloadQueue = await getDownloadQueue(page);
-    
+        browser.close();
+
         // Download the queue
-        console.log("Ready to download!");
-        console.log(downloadQueue);
+        await startDownload(downloadQueue);
     }
 }
 
@@ -99,7 +101,7 @@ async function getDownloadQueue(page) {
             downloadQueue.push(downloadObject);
 
             await page.click("a[title='Volgende']");
-            await page.waitFor(500);
+            await page.waitForSelector("span#fbPhotoSnowliftTimestamp");
         } else {
             readyToDownload = true;
         }
@@ -112,7 +114,7 @@ async function getPostTimestamp(page) {
     return await page.evaluate(() => {
         const span = document.querySelector("span#fbPhotoSnowliftTimestamp")
         const timestamp = span.querySelector("span.timestampContent").parentElement.dataset.utime;
-        
+
         return timestamp;
     });
 }
@@ -134,6 +136,23 @@ async function getImageLink(page) {
 
         return link;
     })
+}
+
+async function startDownload(queue) {
+    await queue.forEach(async (img) => {
+        const url = img.link;
+        const imgName = img.timestamp + ".png";
+        const path = Path.resolve(__dirname, 'images', imgName);
+        const writer = fs.createWriteStream(path)
+
+        const response = await Axios({
+            url,
+            method: 'GET',
+            responseType: 'stream'
+        })
+
+        response.data.pipe(writer)
+    });
 }
 
 init();
