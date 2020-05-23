@@ -8,16 +8,10 @@ const Path = require("path")
 
 async function init() {
     const SCRAPE_URL = config.scrape_url;
-    const browser = await puppeteer.launch({ headless: false });
+    const browser = await puppeteer.launch();
     const context = browser.defaultBrowserContext();
     context.overridePermissions("https://www.facebook.com", ["geolocation", "notifications"]);
     const page = await browser.newPage();
-    // TEMP
-    await page.setViewport({
-        width: 1920,
-        height: 1080,
-        deviceScaleFactor: 1,
-    });
 
     // Check if there is a previously saved session
     if (Object.keys(cookies).length) {
