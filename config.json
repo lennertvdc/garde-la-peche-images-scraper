@@ -3,6 +3,5 @@
         "email":"gregory.barclay@lennertvdc.be",
         "password":"QSjEBfrq2q7BYKtP"
     },
-    "scrape_url": "https://www.facebook.com/groups/gardelapecheglp/photos/",
-    "login_url": "https://www.facebook.com/login/"
+    "url": "https://www.facebook.com/groups/gardelapecheglp/photos/"
 }

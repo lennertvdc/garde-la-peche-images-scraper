@@ -1,80 +1,69 @@
 const puppeteer = require("puppeteer");
-const fs = require("fs");
-const cookies = require("./cookies.json");
 const config = require("./config.json");
-const latestDownload = require("./latest-download.json");
-const Axios = require("axios");
-const Path = require("path")
+const fs = require("fs");
 
 async function init() {
-    const SCRAPE_URL = config.scrape_url;
-    const browser = await puppeteer.launch();
+    console.log("Opening facebook page");
+
+    const chromeOptions = {
+        headless: false,
+        slowMo: 10,
+        defaultViewport: {
+            width: 1920,
+            height: 1080
+        }
+    };
+    const browser = await puppeteer.launch(chromeOptions);
     const context = browser.defaultBrowserContext();
     context.overridePermissions("https://www.facebook.com", ["geolocation", "notifications"]);
     const page = await browser.newPage();
 
+    await insertLoginCookies(page);
+
+    console.log("Checking if images are up to date...");
+
+    const repoUpToDate = await checkRepoUpToDate(page);
+    if(!repoUpToDate) {
+        console.log("Updating repo....");
+    }
+}
+
+async function insertLoginCookies(page) {
+    const cookies = require("./cookies.json");
     // Check if there is a previously saved session
     if (Object.keys(cookies).length) {
-
         // Set the saved cookies in the puppeteer browser page
+        console.log("No need to login, restoring cookies...");
         await page.setCookie(...cookies);
-
     } else {
         // Login to facebook
+        console.log("Did not found cookies, need to login...");
         await login(page);
-    }
-
-    // Go to facebook page for scraping
-    await page.goto(SCRAPE_URL, { waitUntil: "networkidle2" });
-
-    // Go to page of first image
-    const link = await giveFirstImageLink(page);
-    await page.goto(link, { waitUntil: "networkidle2" });
-
-    // Create a downloadQueue
-    const newestPostTimestamp = await getPostTimestamp(page);
-    if (newestPostTimestamp != latestDownload.timestamp) {
-        const downloadQueue = await getDownloadQueue(page);
-        browser.close();
-
-        // Download the queue
-        console.log(`Start downloading ${downloadQueue.length} images...`);
-        await startDownload(downloadQueue);
-        console.log("Queue succesfully downloaded!");
-
-        // Update latest-download.json
-        updateLatestDownloadFile(newestPostTimestamp);
-    } else {
-        browser.close();
-        console.log("No images needed to be downloaded, image repository is up to date!");
     }
 }
 
 async function login(page) {
-    const LOGIN_URL = config.login_url;
-
-    // Go to facebook login page
-    await page.goto(LOGIN_URL, { waitUntil: "networkidle0" });
-
     // Write in the email and password
     const account = config.fb_acc;
     await page.type("#email", account.email, { delay: 30 });
     await page.type("#pass", account.password, { delay: 30 });
 
-    // Click login button
-    await page.click("#loginbutton");
-
-    // Wait for navigation to finish
-    await page.waitForNavigation({ waitUntil: "networkidle0" });
+    // Press enter to login
+    page.keyboard.press("Enter");
 
     // Check if logged in
     try {
         await page.waitFor("[data-click='profile_icon']");
+        console.log("Succesfully logged in! Saving cookies now.");
+        await saveCookiesToFile(page);
+        console.log("Cookies saved!");
     } catch (error) {
         console.log("Failed to login.");
         process.exit(0);
     }
+}
 
+async function saveCookiesToFile(page) {
     // Get the current browser page session
     let currentCookies = await page.cookies();
 
@@ -82,7 +71,7 @@ async function login(page) {
     fs.writeFileSync("./cookies.json", JSON.stringify(currentCookies));
 }
 
-async function giveFirstImageLink(page) {
+async function giveNewestImageLink(page) {
     return await page.evaluate(() => {
         const table = document.querySelector("table");
         const firstImage = table.querySelector("td")
@@ -92,79 +81,39 @@ async function giveFirstImageLink(page) {
     });
 }
 
-async function getDownloadQueue(page) {
-    let readyToDownload = false;
-    let downloadQueue = [];
-    while (!readyToDownload) {
-        const latestDownloadedImg = latestDownload.timestamp;
-        let timestamp = await getPostTimestamp(page);
-        if (timestamp != latestDownloadedImg) {
-            let downloadObject = await getDownloadObject(page, timestamp);
-            downloadQueue.push(downloadObject);
-            console.log(`Add image to queue! Length of queue is ${downloadQueue.length}`);
-
-            await page.click("a[title='Volgende']");
-            await page.waitForSelector("span#fbPhotoSnowliftTimestamp");
-        } else {
-            readyToDownload = true;
-        }
-    }
-
-    return downloadQueue;
-}
-
-async function getPostTimestamp(page) {
+async function getImageTimestamp(page) {
     return await page.evaluate(() => {
-        const span = document.querySelector("span#fbPhotoSnowliftTimestamp")
-        const timestamp = span.querySelector("span.timestampContent").parentElement.dataset.utime;
+        const span = document.querySelector("span.timestampContent");
+        const timestamp = span.parentElement.dataset.utime;
 
         return timestamp;
     });
 }
 
-async function getDownloadObject(page, timestamp) {
-    const imgLink = await getImageLink(page);
+async function checkRepoUpToDate(page) {
+    await page.goto(config.url);
 
-    return {
-        timestamp: timestamp,
-        link: imgLink
-    }
-}
+    const latestDownload = getLatestDownload();
 
-async function getImageLink(page) {
-    return await page.evaluate(() => {
-        const stage = document.querySelector("div.stage");
-        const image = stage.querySelector("img.spotlight");
-        const link = image.src;
+    let newestImage = {};
+    newestImage.link = await giveNewestImageLink(page);
 
-        return link;
-    })
-}
+    await page.goto(newestImage.link);
+    newestImage.timestamp = await getImageTimestamp(page);
 
-async function startDownload(queue) {
-    await queue.forEach(async (img) => {
-        const url = img.link;
-        const imgName = img.timestamp + ".png";
-        const path = Path.resolve(__dirname, 'images', imgName);
-        const writer = fs.createWriteStream(path)
-
-        const response = await Axios({
-            url,
-            method: 'GET',
-            responseType: 'stream'
-        })
-
-        response.data.pipe(writer)
-    });
-}
-
-function updateLatestDownloadFile(timestamp) {
-    const timestampJson = {
-        timestamp: timestamp
+    if (newestImage.timestamp != latestDownload.timestamp) {
+        console.log("Repo is niet up to date!");
+        return false;
     }
 
-    const data = JSON.stringify(timestampJson);
-    fs.writeFileSync('latest-download.json', data);
+    console.log("Repo is up to date!")
+    return true;
+}
+
+function getLatestDownload() {
+    const images = require("./images/images.json");
+
+    return images[images.length - 1];
 }
 
 init();
