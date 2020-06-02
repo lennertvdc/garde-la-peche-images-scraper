@@ -5,6 +5,29 @@ const fs = require("fs");
 async function init() {
     console.log("Opening facebook page");
 
+    let browser, page;
+    [browser, page] = await openBrowser();
+
+    console.log("Checking if imagesrepo is up to date...");
+
+    let newestImage = await getNewestPostIfRepoIsNotUpToDate(page);
+    browser.close();
+    if (newestImage !== null) {
+        console.log("Updating repo....");
+
+        console.log("Preparing download queue!")
+        const downloadQueue = await getDownloadQueue(newestImage);
+
+        // Download queue
+
+        // Add download queue to images.json file
+
+        // (Delete cookies)
+        
+    }
+}
+
+async function openBrowser() {
     const chromeOptions = {
         headless: false,
         slowMo: 10,
@@ -20,12 +43,7 @@ async function init() {
 
     await insertLoginCookies(page);
 
-    console.log("Checking if images are up to date...");
-
-    const repoUpToDate = await checkRepoUpToDate(page);
-    if(!repoUpToDate) {
-        console.log("Updating repo....");
-    }
+    return [browser, page];
 }
 
 async function insertLoginCookies(page) {
@@ -33,7 +51,6 @@ async function insertLoginCookies(page) {
     // Check if there is a previously saved session
     if (Object.keys(cookies).length) {
         // Set the saved cookies in the puppeteer browser page
-        console.log("No need to login, restoring cookies...");
         await page.setCookie(...cookies);
     } else {
         // Login to facebook
@@ -49,7 +66,7 @@ async function login(page) {
     await page.type("#pass", account.password, { delay: 30 });
 
     // Press enter to login
-    page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
 
     // Check if logged in
     try {
@@ -71,7 +88,7 @@ async function saveCookiesToFile(page) {
     fs.writeFileSync("./cookies.json", JSON.stringify(currentCookies));
 }
 
-async function giveNewestImageLink(page) {
+async function giveNewestPostLink(page) {
     return await page.evaluate(() => {
         const table = document.querySelector("table");
         const firstImage = table.querySelector("td")
@@ -81,39 +98,94 @@ async function giveNewestImageLink(page) {
     });
 }
 
-async function getImageTimestamp(page) {
+async function getPostTimestamp(page) {
+    await page.waitForSelector("span#fbPhotoSnowliftTimestamp");
+
     return await page.evaluate(() => {
-        const span = document.querySelector("span.timestampContent");
-        const timestamp = span.parentElement.dataset.utime;
+        const span = document.querySelector("span#fbPhotoSnowliftTimestamp");
+        const abbr = span.querySelector("abbr");
+        const timestamp = abbr.dataset.utime;
 
         return timestamp;
     });
 }
 
-async function checkRepoUpToDate(page) {
+async function getImageLink(page) {
+    return await page.evaluate(() => {
+        const stage = document.querySelector("div.stage");
+        const image = stage.querySelector("img.spotlight");
+        const link = image.src;
+
+        return link;
+    })
+}
+
+async function getNewestPostIfRepoIsNotUpToDate(page) {
     await page.goto(config.url);
 
     const latestDownload = getLatestDownload();
 
     let newestImage = {};
-    newestImage.link = await giveNewestImageLink(page);
+    newestImage.postLink = await giveNewestPostLink(page);
 
-    await page.goto(newestImage.link);
-    newestImage.timestamp = await getImageTimestamp(page);
+    await page.goto(newestImage.postLink);
+    newestImage.timestamp = await getPostTimestamp(page);
 
     if (newestImage.timestamp != latestDownload.timestamp) {
         console.log("Repo is niet up to date!");
-        return false;
+        return newestImage;
     }
 
     console.log("Repo is up to date!")
-    return true;
+    return null;
 }
 
 function getLatestDownload() {
     const images = require("./images/images.json");
 
     return images[images.length - 1];
+}
+
+async function goToNextPost(page) {
+    await page.keyboard.press("ArrowRight");
+}
+
+async function getDownloadQueue(newestImage) {
+    let tempPost = newestImage;
+    let repoUpToDate = false;
+
+    let downloadQueue = [];
+    while (!repoUpToDate) {
+        [browser, page] = await openBrowser();
+        await page.goto(tempPost.postLink);
+
+        tempPost.img = await getImageLink(page);
+        downloadQueue.push(tempPost);
+        console.log("Added image to queue! Length of queue is ", downloadQueue.length);
+
+        const nextPost = await getNextPostObject(page);
+
+        const latestDownload = getLatestDownload();
+        if (latestDownload.timestamp != nextPost.timestamp) {
+            tempPost = nextPost;
+        } else {
+            repoUpToDate = true;
+        }
+
+        browser.close();
+    }
+
+    return downloadQueue;
+}
+
+async function getNextPostObject(page) {
+    await goToNextPost(page);
+
+    const nextPost = {};
+    nextPost.postLink = await page.url();
+    nextPost.timestamp = await getPostTimestamp(page);
+
+    return nextPost;
 }
 
 init();
