@@ -1,7 +1,16 @@
 {
-    "fb_acc": {
-        "email":"gregory.barclay@lennertvdc.be",
-        "password":"QSjEBfrq2q7BYKtP"
-    },
-    "url": "https://www.facebook.com/groups/gardelapecheglp/photos/"
+  "account": {
+    "email": "gregory.barclay@lennertvdc.be",
+    "password": "QSjEBfrq2q7BYKtP",
+    "loginUrl": "https://www.facebook.com/login"
+  },
+  "url": "https://www.facebook.com/groups/gardelapecheglp/photos/",
+  "chromeOptions": {
+    "headless": false,
+    "slowMo": 10,
+    "defaultViewport": {
+      "width": 1920,
+      "height": 1080
+    }
+  }
 }
