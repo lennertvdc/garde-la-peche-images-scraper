@@ -18,6 +18,7 @@ async function init() {
     await downloadQueue(queue);
 
     // Adding download queue to images.json
+    await saveQueueToFile(queue);
 }
 
 async function openBrowser() {
@@ -142,6 +143,17 @@ async function downloadQueue(queue) {
         response.data.pipe(writer)
     });
     console.log("Queue has been downloaded!");
+}
+
+async function saveQueueToFile(queue) {
+    const json = require("./images/images.json");
+    const allDownloadedImages = json.concat(queue.reverse());
+
+    const jsonString = JSON.stringify(allDownloadedImages);
+    fs.writeFile("./images/images.json", jsonString, "utf8", (err) => {
+        if (err) throw err;
+        console.log("Json file has been saved!");
+      });
 }
 
 init();
