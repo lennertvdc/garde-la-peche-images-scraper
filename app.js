@@ -5,7 +5,7 @@ async function init() {
     const browser = await openBrowser();
     const cookies = await getLoginCookies(browser);
     const newestPostUrl = "https://www.facebook.com/photo.php?fbid=1430022817203387&set=g.956842611031123&type=1&ifg=1";
-    
+
     const downloadQueue = await getDownloadQueue(browser, cookies, newestPostUrl);
     console.log(downloadQueue);
 
@@ -21,6 +21,37 @@ async function openBrowser() {
     return browser;
 }
 
+async function getLoginCookies(browser) {
+    const page = await browser.newPage();
+    const account = config.account;
+
+    await page.goto(account.loginUrl);
+
+    await loginWithCredentials(page, account);
+
+    const cookies = await page.cookies();
+
+    await page.close();
+
+    return cookies;
+}
+
+async function loginWithCredentials(page, account) {
+    // Write in the email and password
+    await page.type("#email", account.email, { delay: 30 });
+    await page.type("#pass", account.password, { delay: 30 });
+
+    // Press enter to login
+    await page.keyboard.press("Enter");
+
+    // Waiting for page to being loaded
+    try {
+        await page.waitFor("[data-click='profile_icon']");
+    } catch (error) {
+        console.log("Failed to login.");
+    }
+}
+
 async function getDownloadQueue(browser, cookies, url) {
     const page = await browser.newPage();
 
@@ -34,7 +65,7 @@ async function getDownloadQueue(browser, cookies, url) {
     await page.close();
 
     const latestDownloadUrl = getLatestDownloadUrl();
-    if(nextPostLink === latestDownloadUrl) {
+    if (nextPostLink === latestDownloadUrl) {
         return postData;
     } else {
         return postData.concat(await getDownloadQueue(browser, cookies, nextPostLink));
@@ -66,33 +97,6 @@ function getLatestDownloadUrl() {
     const images = require("./images/images.json");
 
     return images[images.length - 1].url;
-}
-
-async function getLoginCookies(browser) {
-    const page = await browser.newPage();
-    const account = config.account;
-
-    await page.goto(account.loginUrl);
-
-    // Write in the email and password
-    await page.type("#email", account.email, { delay: 30 });
-    await page.type("#pass", account.password, { delay: 30 });
-
-    // Press enter to login
-    await page.keyboard.press("Enter");
-
-    // Waiting for page to being loaded
-    try {
-        await page.waitFor("[data-click='profile_icon']");
-    } catch (error) {
-        console.log("Failed to login.");
-    }
-
-    const cookies = await page.cookies();
-
-    await page.close();
-
-    return cookies;
 }
 
 init();
