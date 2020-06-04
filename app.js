@@ -6,14 +6,17 @@ async function init() {
     const cookies = await getLoginCookies(browser);
     const newestPostUrl = "https://www.facebook.com/photo.php?fbid=1430022817203387&set=g.956842611031123&type=1&ifg=1";
 
+    console.log("Preparing download queue.");
     const downloadQueue = await getDownloadQueue(browser, cookies, newestPostUrl);
-    console.log(downloadQueue);
+    console.log("Download queue is ready!");
 
+    console.log(downloadQueue);
 
     await browser.close();
 }
 
 async function openBrowser() {
+    console.log("Opening browser.");
     const browser = await puppeteer.launch(config.chromeOptions);
     const context = browser.defaultBrowserContext();
     context.overridePermissions("https://www.facebook.com", ["geolocation", "notifications"]);
@@ -29,6 +32,7 @@ async function getLoginCookies(browser) {
 
     await loginWithCredentials(page, account);
 
+    console.log("Getting login cookies of facebook.")
     const cookies = await page.cookies();
 
     await page.close();
@@ -37,6 +41,7 @@ async function getLoginCookies(browser) {
 }
 
 async function loginWithCredentials(page, account) {
+    console.log("Logging in on facebook.");
     // Write in the email and password
     await page.type("#email", account.email, { delay: 30 });
     await page.type("#pass", account.password, { delay: 30 });
