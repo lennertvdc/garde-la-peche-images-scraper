@@ -4,7 +4,7 @@ const config = require("./config.json");
 async function init() {
     const browser = await openBrowser();
     const cookies = await getLoginCookies(browser);
-    const newestPostUrl = "https://www.facebook.com/photo.php?fbid=1430022817203387&set=g.956842611031123&type=1&ifg=1";
+    const newestPostUrl = await getNewestPostUrl(browser);
 
     console.log("Preparing download queue.");
     const downloadQueue = await getDownloadQueue(browser, cookies, newestPostUrl);
@@ -55,6 +55,19 @@ async function loginWithCredentials(page, account) {
     } catch (error) {
         console.log("Failed to login.");
     }
+}
+
+async function getNewestPostUrl(browser) {
+    const page = await browser.newPage();
+    await page.goto(config.url);
+
+    const url = await page.evaluate(() => {
+        return document.querySelector("table.fbPhotosGrid td a").href;
+    });
+
+    page.close();
+
+    return url;
 }
 
 async function getDownloadQueue(browser, cookies, url) {
