@@ -1,4 +1,7 @@
 const puppeteer = require("puppeteer");
+const fs = require("fs");
+const Axios = require("axios");
+const Path = require("path");
 const config = require("./config.json");
 
 async function init() {
@@ -7,12 +10,14 @@ async function init() {
     const newestPostUrl = await getNewestPostUrl(browser);
 
     console.log("Preparing download queue.");
-    const downloadQueue = await getDownloadQueue(browser, cookies, newestPostUrl);
+    const queue = await getDownloadQueue(browser, cookies, newestPostUrl);
     console.log("Download queue is ready!");
 
-    console.log(downloadQueue);
-
     await browser.close();
+
+    await downloadQueue(queue);
+
+    // Adding download queue to images.json
 }
 
 async function openBrowser() {
@@ -95,9 +100,13 @@ async function getPostData(page) {
     await page.waitFor("span#fbPhotoSnowliftTimestamp abbr");
 
     let postData = await page.evaluate(() => {
+        const timestamp = document.querySelector("span#fbPhotoSnowliftTimestamp abbr").dataset.utime;
         return {
-            timestamp: document.querySelector("span#fbPhotoSnowliftTimestamp abbr").dataset.utime,
-            img: document.querySelector("div.stage img.spotlight").src
+            timestamp: timestamp,
+            img: {
+                url: document.querySelector("div.stage img.spotlight").src,
+                name: timestamp + ".png"
+            }
         };
     });
 
@@ -115,6 +124,24 @@ function getLatestDownloadUrl() {
     const images = require("./images/images.json");
 
     return images[images.length - 1].url;
+}
+
+async function downloadQueue(queue) {
+    console.log(`Downloading queue of ${queue.length} images.`);
+    await queue.forEach(async (post) => {
+        const img = post.img;
+        const path = Path.resolve(__dirname, 'images', img.name);
+        const writer = fs.createWriteStream(path)
+
+        const response = await Axios({
+            url: img.url,
+            method: 'GET',
+            responseType: 'stream'
+        })
+
+        response.data.pipe(writer)
+    });
+    console.log("Queue has been downloaded!");
 }
 
 init();
