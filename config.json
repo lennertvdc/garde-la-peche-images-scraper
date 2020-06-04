@@ -6,7 +6,7 @@
   },
   "url": "https://www.facebook.com/groups/gardelapecheglp/photos/",
   "chromeOptions": {
-    "headless": false,
+    "headless": true,
     "slowMo": 10,
     "defaultViewport": {
       "width": 1920,
