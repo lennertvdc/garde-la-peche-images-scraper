@@ -90,8 +90,7 @@ async function scrapePostAndContinue(browser, cookies, page, counter) {
     await goToNextPost(page);
     const nextPostLink = await page.url();
 
-    // const latestDownloadUrl = getLatestDownloadUrl();
-    const latestDownloadUrl = "https://www.facebook.com/photo.php?fbid=2570025146569280&set=g.956842611031123&type=1&theater&ifg=1";
+    const latestDownloadUrl = getLatestDownloadUrl();
     if (nextPostLink === latestDownloadUrl) {
         return postData;
     } else if (counter === 0) {
