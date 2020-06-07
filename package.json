@@ -1,5 +1,5 @@
 {
-  "name": "garde-la-peche-images-scraper",
+  "name": "garde-la-pêche-images-scraper",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
@@ -7,6 +7,10 @@
     "start": "node app.js"
   },
   "author": "Lennert Vandecasteele",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lennertvdc/garde-la-peche-images-scraper.git"
+  },
   "license": "ISC",
   "dependencies": {
     "axios": "^0.19.2",
