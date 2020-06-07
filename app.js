@@ -10,7 +10,7 @@ async function init() {
     const newestPostUrl = await getNewestPostUrl(browser);
 
     console.log("Preparing download queue.");
-    const queue = await getDownloadQueue(browser, cookies, newestPostUrl);
+    const queue = await getDownloadQueueFromUrl(browser, cookies, newestPostUrl);
     console.log("Download queue is ready!");
 
     await browser.close();
@@ -76,30 +76,57 @@ async function getNewestPostUrl(browser) {
     return url;
 }
 
-async function getDownloadQueue(browser, cookies, url) {
+async function getDownloadQueueFromUrl(browser, cookies, startUrl) {
     const page = await browser.newPage();
-
     await page.setCookie(...cookies);
 
-    await page.goto(url);
+    await page.goto(startUrl);
 
+    return await scrapePostAndContinue(browser, cookies, page, 50);
+}
+
+async function scrapePostAndContinue(browser, cookies, page, counter) {
     const postData = await getPostData(page);
-    const nextPostLink = await getNextPostLink(page);
+    await goToNextPost(page);
+    const nextPostLink = await page.url();
 
-    await page.close();
-
-    const latestDownloadUrl = getLatestDownloadUrl();
+    // const latestDownloadUrl = getLatestDownloadUrl();
+    const latestDownloadUrl = "https://www.facebook.com/photo.php?fbid=2570025146569280&set=g.956842611031123&type=1&theater&ifg=1";
     if (nextPostLink === latestDownloadUrl) {
         return postData;
+    } else if (counter === 0) {
+        console.log("Restarting browser because it is to slow.");
+        browser.close();
+        const newBrowser = await openBrowser();
+
+        return postData.concat(await getDownloadQueueFromUrl(newBrowser, cookies, nextPostLink));
     } else {
-        return postData.concat(await getDownloadQueue(browser, cookies, nextPostLink));
+        return postData.concat(await scrapePostAndContinue(browser, cookies, page, --counter));
     }
 }
 
-async function getPostData(page) {
-    // Waiting for being loaded
-    await page.waitFor("span#fbPhotoSnowliftTimestamp abbr");
+async function goToNextPost(page) {
+    await page.keyboard.press("ArrowRight");
+}
 
+async function getPostData(page) {
+    try {
+        // Waiting for being loaded
+        await page.waitForSelector("span#fbPhotoSnowliftTimestamp abbr", { timeout: 3000 });
+
+        console.log("Adding image to the queue!");
+        return await scrapePostDataFromPage(page);
+    } catch (error) {
+        console.error("Page not loaded, reloading page");
+        await page.reload();
+
+        // Need to return empty array because facebook prevents webscraping :-p
+        // Otherwise we have duplicates...
+        return [];
+    }
+}
+
+async function scrapePostDataFromPage(page) {
     let postData = await page.evaluate(() => {
         const timestamp = document.querySelector("span#fbPhotoSnowliftTimestamp abbr").dataset.utime;
         return {
@@ -114,11 +141,6 @@ async function getPostData(page) {
     postData.url = await page.url();
 
     return [postData];
-}
-
-async function getNextPostLink(page) {
-    await page.keyboard.press("ArrowRight");
-    return page.url();
 }
 
 function getLatestDownloadUrl() {
@@ -153,7 +175,7 @@ async function saveQueueToFile(queue) {
     fs.writeFile("./images/images.json", jsonString, "utf8", (err) => {
         if (err) throw err;
         console.log("Json file has been saved!");
-      });
+    });
 }
 
 init();
