@@ -125,17 +125,20 @@ async function scrapePostDataFromPage(page) {
     let postData = await page.evaluate(() => {
         const timestamp = document.querySelector("span#fbPhotoSnowliftTimestamp abbr").dataset.utime;
         return {
-            timestamp: timestamp,
-            img: {
-                url: document.querySelector("div.stage img.spotlight").src,
-                name: timestamp + ".png"
-            }
+            posted_at: timestamp,
+            img_url: document.querySelector("div.stage img.spotlight").src
         };
     });
 
-    postData.url = await page.url();
+    postData.posted_at = convertTimestamp(postData.posted_at);
+    postData.fb_url = await page.url();
 
     return [postData];
+}
+
+function convertTimestamp(timestamp) {
+    const date = new Date(timestamp * 1000);
+    return date.toISOString();
 }
 
 module.exports = {
