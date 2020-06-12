@@ -16,7 +16,7 @@ If you want to run the script by the cron job. Simply change it to `production`.
 Change this if you want to change the time between every run of the scraper. The scraper will run every 5 minutes by default.
 
 ## Running the scraper
-If you changed the `NODE_ENV` in the config file to `production` then the script will the cron job. Otherwise it will run just once.
+If you changed the `NODE_ENV` in the config file to `production` then the script will run the cron job. Otherwise it will run just once.
 
 ```
 npm start
