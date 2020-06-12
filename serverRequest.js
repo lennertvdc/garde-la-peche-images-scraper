@@ -15,7 +15,7 @@ async function getLatestPost() {
 async function sendPost(post) {
     try {
         const res = await axios.post("http://localhost:5000/api/posts", post);
-        console.log(res.statusText);
+        console.log("Succesfully sended post to the server.");
     } catch (error) {
         console.log("Could not send post to the server!");
         console.log(error);
