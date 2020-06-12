@@ -1,9 +1,12 @@
-const config = require("./config.json");
 const scraper = require("./scraper");
 const serverRequest = require("./serverRequest");
 
-async function init() {
-    const newestPosts = scraper.getNewestPosts();
+async function scrapeAndSendPosts() {
+    const newestPosts = await scraper.getNewestPosts();
+
+    newestPosts.forEach(post => {
+        serverRequest.sendPost(post);
+    });
 }
 
-init();
+scrapeAndSendPosts();
