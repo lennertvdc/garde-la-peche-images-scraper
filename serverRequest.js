@@ -22,19 +22,7 @@ async function sendPost(post) {
     }
 }
 
-async function getAllWebhooks() {
-    try {
-        const webhooks = await axios.get("http://localhost:5000/api/webhooks");
-
-        return webhooks.data;
-    } catch (error) {
-        console.log("Could not get all webhooks!");
-        console.log(error);
-    }
-}
-
 module.exports = {
     getLatestPost,
-    sendPost,
-    getAllWebhooks
+    sendPost
 }
