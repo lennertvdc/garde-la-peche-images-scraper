@@ -58,17 +58,18 @@ async function getNewestPostUrl(browser) {
 }
 
 async function getNewestPosts() {
+    console.log("Start scraping.");
     const browser = await openBrowser();
     const cookies = await getLoginCookies(browser);
     const newestPostUrl = await getNewestPostUrl(browser);
 
-    console.log("Preparing download queue.");
-    const queue = await startScrapingPostsFromUrl(browser, cookies, newestPostUrl);
-    console.log("Download queue is ready!");
+    const newestPosts = await startScrapingPostsFromUrl(browser, cookies, newestPostUrl);
 
     await browser.close();
 
-    return queue;
+    console.log(`Scraping is done returning newestPosts array of length ${newestPosts.length}`)
+
+    return newestPosts.reverse();
 }
 
 async function startScrapingPostsFromUrl(browser, cookies, startUrl) {
@@ -85,7 +86,7 @@ async function scrapePostAndContinue(browser, cookies, page, counter) {
     await goToNextPost(page);
     const nextPostLink = await page.url();
 
-    const latestPost = serverRequest.getLatestPost();
+    const latestPost = await serverRequest.getLatestPost();
     if (nextPostLink === latestPost.fb_url) {
         return postData;
     } else if (counter === 0) {
@@ -108,10 +109,10 @@ async function getPostData(page) {
         // Waiting for being loaded
         await page.waitForSelector("span#fbPhotoSnowliftTimestamp abbr", { timeout: 3000 });
 
-        console.log("Adding image to the queue!");
+        console.log("Adding image to newest posts array!");
         return await scrapePostDataFromPage(page);
     } catch (error) {
-        console.error("Page not loaded, reloading page");
+        console.error("Page not loaded, reloading page.");
         await page.reload();
 
         // Need to return empty array because facebook prevents webscraping :-p
