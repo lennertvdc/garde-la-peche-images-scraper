@@ -2,8 +2,8 @@ const scraper = require('./scraper');
 const Image = require('./Image');
 
 (async () => {
-    const latestImage = new Image('10224483736306237');
-    const images = await scraper.getAllImages();
+    const latestImage = new Image('10158266291688751');
+    const images = await scraper.getAllImages(latestImage);
     //https://www.facebook.com/photo.php?fbid=10224775102230203&set=g.956842611031123&type=1&theater&ifg=1
 
 })();

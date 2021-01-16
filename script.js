@@ -1,48 +1,45 @@
-const latestImage = {fbid: '10224531359416785'};
+let latestImage = {fbId: '10204230301551040'};
 
 console.log(await getImages());
 
 
-async function getImages(latestImage = null, images = [], totalHeight = 0) {
-    //div from bateko page
-    const div = document.querySelectorAll('div[role="main"]')[1].children[3].firstChild.firstChild.children[2].firstChild.firstChild.firstChild.children[1].children;
-    for (let i = images.length; i <= div.length-1; i++) {
+async function getImages(latestImage = null, images = []) {
+    const div = document.querySelector('div[role="main"]').children[3].firstChild.firstChild.firstChild.firstChild.firstChild.children[1].children;
+    for (let i = images.length; i <= div.length - 1; i++) {
         const child = div[i];
-        console.log(child, child.querySelector('a'), i, div.length);
-        if (child.querySelector('a') === null && totalHeight <= document.body.scrollHeight) {
-            const newTotalHeight = await scrollToLoadImages(div, checkNumberOfChildren, totalHeight);
-            return await getImages(latestImage, images, newTotalHeight);
-        } else if(child.querySelector('a') !== null){
-            const url = child.querySelector('a').href;
-            const regex = /([0-9])+/g;
-            const fbid = regex.exec(url)[0];
-            const image = {fbid, url};
-            images.push(image);
-            if (latestImage !== null && fbid === latestImage.fbid) {
+        if (child.querySelector('div[role="progressbar"]') !== null) {
+            await scrollToLoadImages(div);
+            return await getImages(latestImage, images);
+        } else {
+            const image = await getImageData(child);
+            if (latestImage !== null && image.fbId === latestImage.fbId) {
                 return images;
+            } else {
+                images.push(image);
             }
         }
     }
     return images;
 }
 
-async function scrollToLoadImages(div, resolveCheckFunction, totalHeight = 0) {
+async function scrollToLoadImages(div) {
     return new Promise((resolve, reject) => {
-        const numberOfCurrentChildren = div.length;
+        const currentDivLength = div.length;
         const distance = 100;
         let timer = setInterval(async () => {
-            const scrollHeight = document.body.scrollHeight;
             window.scrollBy(0, distance);
-            totalHeight += distance;
-            if (await resolveCheckFunction(numberOfCurrentChildren, div) || totalHeight >= scrollHeight) {
+            if (div.length > currentDivLength || div[div.length - 1].querySelector('div[role="progressbar"]') === null) {
                 clearInterval(timer);
-                resolve(totalHeight);
+                resolve();
             }
         }, 100);
-    })
+    });
 }
 
-async function checkNumberOfChildren(current, div) {
-    return div.length > current;
+async function getImageData(div) {
+    const fbUrl = div.querySelector('a').href;
+    const regex = /([0-9])+/g;
+    const fbId = regex.exec(fbUrl)[0];
+    const alt = div.querySelector('img').alt;
+    return {fbUrl, fbId, alt};
 }
-
