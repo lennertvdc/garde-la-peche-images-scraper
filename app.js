@@ -1,16 +1,10 @@
-const config = require("./config");
-const scraper = require("./scraper");
-const serverRequest = require("./serverRequest");
-const cron = require("node-cron");
-
-const browser = require('./browser');
-const login = require('./login');
-const cookies = require('./cookies');
+const scraper = require('./scraper');
+const Image = require('./Image');
 
 (async () => {
-    const {browserInstance, page} = await browser.goToPage(config.pageUrl);
-    console.log('loaded!');
-
+    const latestImage = new Image('10224483736306237');
+    const images = await scraper.getAllImages();
+    //https://www.facebook.com/photo.php?fbid=10224775102230203&set=g.956842611031123&type=1&theater&ifg=1
 
 })();
 
