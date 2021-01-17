@@ -20,13 +20,10 @@ async function goToPage(url) {
     try {
         const browser = await openBrowser();
         const page = await browser.newPage();
-        let pageCookies = cookies.get();
-        if (pageCookies === null) {
-            const loginPage = await browser.newPage();
-            pageCookies = await login(loginPage);
-            await loginPage.close();
+        if (config.node_env === 'production') {
+            await disableImagesAndCss(page);
         }
-        await page.setCookie(...pageCookies);
+        await setCookies(page);
         await page.goto(url);
 
         return {browserInstance: browser, page};
@@ -34,6 +31,39 @@ async function goToPage(url) {
         console.log('Failed to load page => ', exception);
         throw 'Failed to load page';
     }
+}
+
+async function disableImagesAndCss(page) {
+    try {
+        await page.setRequestInterception(true);
+        await page.on('request', (req) => {
+            if(req.resourceType() === 'stylesheet' || req.resourceType() === 'font' || req.resourceType() === 'image'){
+                req.abort();
+            }
+            else {
+                req.continue();
+            }
+        });
+    } catch (err) {
+        console.log('Failed to disable images and css on page => ', err);
+        throw 'Failed to disable images and css on page';
+    }
+}
+
+async function setCookies(page) {
+    try {
+        let pageCookies = cookies.get();
+        if (pageCookies === null) {
+            const loginPage = await browser.newPage();
+            pageCookies = await login(loginPage);
+            await loginPage.close();
+        }
+        await page.setCookie(...pageCookies);
+    } catch (err) {
+        console.log('Failed to set cookies on page => ', err);
+        throw 'Failed to set cookies on page';
+    }
+
 }
 
 module.exports = {goToPage};

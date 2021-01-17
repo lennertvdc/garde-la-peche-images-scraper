@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 module.exports = {
+    node_env: process.env.NODE_ENV,
     account: {
         email: process.env.EMAIL,
         password: process.env.PASSWORD,
