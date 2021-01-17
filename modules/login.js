@@ -1,5 +1,5 @@
 const cookies = require('./cookies');
-const config = require('./config');
+const config = require('../config');
 
 async function login(page) {
     const url = config.account.loginUrl;

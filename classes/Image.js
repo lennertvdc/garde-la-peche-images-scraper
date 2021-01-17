@@ -1,4 +1,4 @@
-const browser = require('./browser');
+const browser = require('../modules/browser');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -8,6 +8,7 @@ module.exports = class Image {
     fbId;
     imgUrl;
     imgBase64;
+    imgPath;
 
     constructor(fbUrl, fbId) {
         this.fbUrl = fbUrl;
@@ -33,12 +34,12 @@ module.exports = class Image {
 
     async download() {
         this.imgUrl = await this.scrapeImgUrl();
-        const dirPath = path.resolve(__dirname, '.tmp');
+        const dirPath = path.resolve(__dirname, '..' ,'.tmp');
         if (!fs.existsSync(dirPath)) {
             fs.mkdirSync(dirPath);
         }
-        const filePath = path.resolve(dirPath, this.fbId+'.png');
-        const writer = fs.createWriteStream(filePath);
+       this.imgPath = path.resolve(dirPath, this.fbId + '.png');
+        const writer = fs.createWriteStream(this.imgPath);
 
         const response = await axios({
             url: this.imgUrl,
@@ -48,16 +49,13 @@ module.exports = class Image {
 
         response.data.pipe(writer);
 
-        await this.base64_encode(filePath);
-
         return new Promise((resolve, reject) => {
             writer.on('finish', resolve)
             writer.on('error', reject)
-        });
+        })
     }
 
-    async base64_encode(imgPath) {
-        const bitmap = fs.readFileSync(imgPath);
-        this.imgBase64 = Buffer.from(bitmap, 'base64').toString('base64');
+    base64_encode() {
+        this.imgBase64 = fs.readFileSync(this.imgPath).toString('base64');
     }
 }

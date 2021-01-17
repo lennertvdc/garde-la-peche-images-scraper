@@ -1,17 +1,26 @@
 const browser = require('./browser');
-const config = require('./config');
-const Image = require('./Image');
+const config = require('../config');
+const Image = require('../classes/Image');
+const fs = require('fs');
+const path = require('path');
 
 async function getAllImages(latestImage) {
     const imagesLinks = await getAllImagesLinks(latestImage);
-    //Filter links
-
-    //Open each images and get image link and post date
-    const res = imagesLinks.map(async (imageLink) => {
+    let imageObjects = [];
+    for (let imageLink of imagesLinks) {
         const img =  new Image(imageLink.fbUrl, imageLink.fbId);
-        await img.scrapeImgUrl()
-    });
-    console.log(res);
+        await img.download();
+        img.base64_encode();
+
+        imageObjects.push(img);
+    }
+
+    const dirPath = path.resolve(__dirname, '..', '.tmp');
+    if (fs.existsSync(dirPath)) {
+        fs.rmdirSync(dirPath, {recursive: true});
+    }
+
+    return imageObjects;
 }
 
 async function getAllImagesLinks(latestImage) {
