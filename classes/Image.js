@@ -16,9 +16,10 @@ module.exports = class Image {
     }
 
     async scrapeImgUrl() {
+        const {browserInstance, page} = await browser.goToPage(this.fbUrl);
         try {
-            const {browserInstance, page} = await browser.goToPage(this.fbUrl);
             await page.waitForSelector('div[role="main"]');
+            await page.waitFor(1000);
             const imgUrl = await page.evaluate(() => {
                 const div = document.querySelector('div[data-pagelet="MediaViewerPhoto"]');
                 const img = div.querySelector('img');
@@ -27,6 +28,7 @@ module.exports = class Image {
             await browserInstance.close();
             return imgUrl;
         } catch (err) {
+            await browserInstance.close();
             console.log('Failed to scrape imgUrl from fbUrl => ', err);
             throw 'Failed to scrape imgUrl from fbUrl';
         }
@@ -57,5 +59,14 @@ module.exports = class Image {
 
     base64_encode() {
         this.imgBase64 = fs.readFileSync(this.imgPath).toString('base64');
+    }
+
+    toJSON() {
+        return {
+            fbId: this.fbId,
+            fbUrl: this.fbUrl,
+            imgUrl: this.imgUrl,
+            imgBase64: this.imgBase64
+        }
     }
 }

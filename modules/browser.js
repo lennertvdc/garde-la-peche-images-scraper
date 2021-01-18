@@ -2,6 +2,8 @@ const puppeteer = require('puppeteer');
 const config = require('../config');
 const cookies = require('./cookies');
 const login = require('./login');
+const path = require('path');
+const fs = require('fs');
 
 async function openBrowser() {
     try {
@@ -23,7 +25,7 @@ async function goToPage(url) {
         if (config.node_env === 'production') {
             await disableImagesAndCss(page);
         }
-        await setCookies(page);
+        await setCookies(browser, page);
         await page.goto(url);
 
         return {browserInstance: browser, page};
@@ -50,7 +52,7 @@ async function disableImagesAndCss(page) {
     }
 }
 
-async function setCookies(page) {
+async function setCookies(browser, page) {
     try {
         let pageCookies = cookies.get();
         if (pageCookies === null) {
@@ -66,4 +68,11 @@ async function setCookies(page) {
 
 }
 
-module.exports = {goToPage};
+function deleteCookies() {
+    const filePath = path.resolve(__dirname, '..', 'cookies.json');
+    if (fs.existsSync(filePath)) {
+        fs.rmSync(filePath);
+    }
+}
+
+module.exports = {goToPage, deleteCookies};

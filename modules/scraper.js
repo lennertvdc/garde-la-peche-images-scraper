@@ -9,7 +9,12 @@ async function getAllImages(latestImage) {
     let imageObjects = [];
     for (let imageLink of imagesLinks) {
         const img =  new Image(imageLink.fbUrl, imageLink.fbId);
-        await img.download();
+        try{
+            await img.download();
+        } catch (e) {
+            browser.deleteCookies();
+            await img.download();
+        }
         img.base64_encode();
 
         imageObjects.push(img);
@@ -20,7 +25,7 @@ async function getAllImages(latestImage) {
         fs.rmdirSync(dirPath, {recursive: true});
     }
 
-    return imageObjects;
+    return imageObjects.reverse();
 }
 
 async function getAllImagesLinks(latestImage) {
@@ -51,7 +56,7 @@ async function getAllImagesLinks(latestImage) {
             }
 
             async function scrollToLoadImages(div) {
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve) => {
                     const currentDivLength = div.length;
                     const distance = 100;
                     let timer = setInterval(async () => {
